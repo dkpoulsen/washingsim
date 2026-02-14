@@ -48,6 +48,7 @@ class _WashingMachineState extends State<WashingMachine>
   double _waterLevel = 0.0;
   String _currentCycle = 'Normal';
   String _status = 'Ready';
+  double _dialRotation = 0.0;
 
   final List<Bubble> _bubbles = [];
   final math.Random _random = math.Random();
@@ -309,12 +310,36 @@ class _WashingMachineState extends State<WashingMachine>
     });
   }
 
+  String _formatTimeRemaining() {
+    if (!_isRunning) return '--:--';
+
+    final remainingSeconds =
+        ((_cycleDurations[_currentCycle]! * (1 - _progress)).round());
+    final minutes = (remainingSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (remainingSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
   void _selectCycle(String cycle) {
     setState(() {
       _currentCycle = cycle;
+      _dialRotation = _getDialRotationForCycle(cycle);
       _stopWashing();
       _playSound('button_press');
     });
+  }
+
+  double _getDialRotationForCycle(String cycle) {
+    switch (cycle) {
+      case 'Normal':
+        return 0;
+      case 'Delicate':
+        return 120;
+      case 'Heavy':
+        return 240;
+      default:
+        return 0;
+    }
   }
 
   void _startProgressTimer() {
@@ -456,343 +481,521 @@ class _WashingMachineState extends State<WashingMachine>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Washing Machine'),
-        backgroundColor: Colors.blue[800],
+        title: const Text('Miele Washing Machine'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black,
       ),
+      backgroundColor: Colors.grey[50],
       body: Center(
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(30),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Washing Machine Body
+              // Miele Washing Machine Body
               Container(
-                width: 300,
-                height: 400,
+                width: 380,
+                height: 520,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
-                    // Control Panel
-                    Container(
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.blue[800],
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          // Power Button
-                          GestureDetector(
-                            onTap: _togglePower,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: _isPoweredOn ? Colors.green : Colors.red,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                _isPoweredOn ? Icons.power : Icons.power_off,
-                                color: Colors.white,
-                                size: 20,
-                              ),
+                child: CustomPaint(
+                  painter: MieleBodyPainter(),
+                  child: Column(
+                    children: [
+                      // Control Panel with Miele styling
+                      Container(
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(25),
+                            topRight: Radius.circular(25),
+                          ),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.grey[300]!,
+                              width: 1,
                             ),
                           ),
+                        ),
+                        child: Stack(
+                          children: [
+                            // Miele Logo
+                            Positioned(
+                              left: 20,
+                              top: 25,
+                              child: Text(
+                                'MIELE',
+                                style: TextStyle(
+                                  fontFamily: 'serif',
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                            ),
 
-                          // Cycle Selector
-                          DropdownButton<String>(
-                            value: _currentCycle,
-                            items: ['Normal', 'Delicate', 'Heavy']
-                                .map(
-                                  (cycle) => DropdownMenuItem(
-                                    value: cycle,
-                                    child: Text(
-                                      cycle,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: _isPoweredOn
-                                ? null
-                                : (String? value) => _selectCycle(value!),
-                            dropdownColor: Colors.blue[800],
-                            underline: Container(),
-                          ),
-
-                          // Start/Pause Button
-                          if (_isPoweredOn)
-                            GestureDetector(
-                              onTap: _isLoadingClothes || _isUnloadingClothes
-                                  ? null
-                                  : _isRunning
-                                  ? _pauseWashing
-                                  : _startWashing,
+                            // Digital Display
+                            Positioned(
+                              right: 20,
+                              top: 15,
                               child: Container(
-                                width: 40,
-                                height: 40,
+                                width: 120,
+                                height: 50,
                                 decoration: BoxDecoration(
-                                  color:
-                                      _isLoadingClothes || _isUnloadingClothes
-                                      ? Colors.grey
-                                      : _isRunning
-                                      ? Colors.orange
-                                      : _clothesInDrum
-                                      ? Colors.green
-                                      : Colors.blue,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 3,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.grey[700]!,
+                                    width: 2,
+                                  ),
                                 ),
-                                child: Icon(
-                                  _isLoadingClothes
-                                      ? Icons.downloading
-                                      : _isUnloadingClothes
-                                      ? Icons.upload
-                                      : _isRunning
-                                      ? Icons.pause
-                                      : _clothesInDrum
-                                      ? Icons.play_arrow
-                                      : Icons.add_circle_outline,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-
-                    // Display
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      child: Text(
-                        _status,
-                        style: TextStyle(
-                          color: Colors.blue[800],
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    // Drum Container
-                    Expanded(
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(100),
-                              border: Border.all(
-                                color: Colors.blue[300]!,
-                                width: 2,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(100),
-                              child: Stack(
-                                children: [
-                                  if (_waterLevel > 0)
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: WaterWavePainter(
-                                          waveValue: _waveController.value,
-                                          waterLevel: _waterLevel,
-                                          isRunning: _isRunning && !_isPaused,
-                                        ),
-                                      ),
-                                    ),
-                                  if (_isRunning && _bubbles.isNotEmpty)
-                                    ..._bubbles.map(
-                                      (bubble) => Positioned(
-                                        left: bubble.x,
-                                        top: bubble.y,
-                                        child: Container(
-                                          width: bubble.size,
-                                          height: bubble.size,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(
-                                              bubble.opacity * 0.6,
-                                            ),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  Transform.rotate(
-                                    angle:
-                                        _drumRotationController.value *
-                                        2 *
-                                        3.14159,
-                                    child: Container(
-                                      width: 200,
-                                      height: 200,
-                                      decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        border: Border.all(
-                                          color: Colors.blue[300]!,
-                                          width: 3,
-                                        ),
-                                        borderRadius: BorderRadius.circular(
-                                          100,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: Container(
-                                          width: 180,
-                                          height: 180,
-                                          decoration: BoxDecoration(
-                                            color: Colors.transparent,
-                                            border: Border.all(
-                                              color: Colors.blue[200]!,
-                                              width: 2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              90,
-                                            ),
-                                          ),
-                                          child: Stack(
-                                            children: [
-                                              if (_isRunning && _clothesInDrum)
-                                                ..._buildTumblingClothes(),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                                child: Center(
+                                  child: Text(
+                                    _formatTimeRemaining(),
+                                    style: TextStyle(
+                                      color: Colors.green[400],
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'monospace',
+                                      letterSpacing: 2,
                                     ),
                                   ),
-                                  if (_clothesInDrum && !_isRunning)
-                                    Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.checkroom,
-                                            color: Colors.blue[400]!
-                                                .withOpacity(0.8),
-                                            size: 35,
-                                          ),
-                                          Icon(
-                                            Icons.checkroom,
-                                            color: Colors.blue[300]!
-                                                .withOpacity(0.6),
-                                            size: 28,
+                                ),
+                              ),
+                            ),
+
+                            // Control buttons
+                            Positioned(
+                              right: 20,
+                              bottom: 15,
+                              child: Row(
+                                children: [
+                                  // Power button
+                                  GestureDetector(
+                                    onTap: _togglePower,
+                                    child: Container(
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        color: _isPoweredOn
+                                            ? Colors.grey[100]
+                                            : Colors.grey[300],
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.grey[400]!,
+                                          width: 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
                                           ),
                                         ],
                                       ),
+                                      child: Icon(
+                                        _isPoweredOn
+                                            ? Icons.power
+                                            : Icons.power_off,
+                                        color: _isPoweredOn
+                                            ? Colors.black
+                                            : Colors.grey[600],
+                                        size: 24,
+                                      ),
                                     ),
+                                  ),
+                                  const SizedBox(width: 15),
+                                  // Start/Pause button
+                                  GestureDetector(
+                                    onTap:
+                                        _isLoadingClothes || _isUnloadingClothes
+                                        ? null
+                                        : _isRunning
+                                        ? _pauseWashing
+                                        : _startWashing,
+                                    child: Container(
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            _isLoadingClothes ||
+                                                _isUnloadingClothes
+                                            ? Colors.grey[300]
+                                            : _isRunning
+                                            ? Colors.orange[500]
+                                            : _clothesInDrum
+                                            ? Colors.green[500]
+                                            : Colors.grey[100],
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.grey[400]!,
+                                          width: 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        _isLoadingClothes
+                                            ? Icons.downloading
+                                            : _isUnloadingClothes
+                                            ? Icons.upload
+                                            : _isRunning
+                                            ? Icons.pause
+                                            : _clothesInDrum
+                                            ? Icons.play_arrow
+                                            : Icons.add_circle_outline,
+                                        color:
+                                            _isLoadingClothes ||
+                                                _isUnloadingClothes
+                                            ? Colors.grey[600]
+                                            : _isRunning
+                                            ? Colors.white
+                                            : _clothesInDrum
+                                            ? Colors.white
+                                            : Colors.black,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                          ),
+                          ],
+                        ),
+                      ),
 
-                          if (_isLoadingClothes || _isUnloadingClothes)
-                            Positioned(
-                              left: _isLoadingClothes
-                                  ? -80 + (_clothesLoadController.value * 120)
-                                  : 40 - (_clothesLoadController.value * 120),
-                              top:
-                                  80 +
-                                  math.sin(
-                                        _clothesLoadController.value * math.pi,
-                                      ) *
-                                      -20,
-                              child: _buildClothesPile(),
+                      // Circular Dial Selector
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Dial background
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.grey[400]!,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _currentCycle,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ),
                             ),
-
-                          if (!_clothesInDrum &&
-                              !_isLoadingClothes &&
-                              !_isUnloadingClothes)
-                            Positioned(
-                              left: -80,
-                              top: 80,
-                              child: _buildClothesPile(),
+                            // Dial indicator
+                            Transform.rotate(
+                              angle: _dialRotation * math.pi / 180,
+                              child: Container(
+                                width: 4,
+                                height: 50,
+                                margin: const EdgeInsets.only(top: 60),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[500],
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
 
-                          if (_isUnloadingClothes &&
-                              _clothesLoadController.value < 0.5)
-                            Positioned(
-                              right: -80,
-                              top:
-                                  80 +
-                                  (1 - _clothesLoadController.value * 2) * 50,
-                              child: Opacity(
-                                opacity: _clothesLoadController.value * 2,
-                                child: Transform.rotate(
-                                  angle: _clothesLoadController.value * 0.3,
-                                  child: _buildClothesPile(),
+                      // Large Circular Porthole Door
+                      Expanded(
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Door frame with chrome effect
+                            Container(
+                              margin: const EdgeInsets.all(30),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(120),
+                                border: Border.all(
+                                  color: Colors.grey[300]!,
+                                  width: 15,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(105),
+                                child: Stack(
+                                  children: [
+                                    // Chrome ring effect
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            Colors.grey[300]!,
+                                            Colors.grey[400]!,
+                                            Colors.white,
+                                            Colors.grey[400]!,
+                                            Colors.grey[300]!,
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          105,
+                                        ),
+                                      ),
+                                    ),
+                                    // Glass effect
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        borderRadius: BorderRadius.circular(
+                                          105,
+                                        ),
+                                        border: Border.all(
+                                          color: Colors.grey[200]!,
+                                          width: 3,
+                                        ),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(
+                                          105,
+                                        ),
+                                        child: Stack(
+                                          children: [
+                                            if (_waterLevel > 0)
+                                              Positioned.fill(
+                                                child: CustomPaint(
+                                                  painter: WaterWavePainter(
+                                                    waveValue:
+                                                        _waveController.value,
+                                                    waterLevel: _waterLevel,
+                                                    isRunning:
+                                                        _isRunning &&
+                                                        !_isPaused,
+                                                  ),
+                                                ),
+                                              ),
+                                            if (_isRunning &&
+                                                _bubbles.isNotEmpty)
+                                              ..._bubbles.map(
+                                                (bubble) => Positioned(
+                                                  left: bubble.x,
+                                                  top: bubble.y,
+                                                  child: Container(
+                                                    width: bubble.size,
+                                                    height: bubble.size,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white
+                                                          .withOpacity(
+                                                            bubble.opacity *
+                                                                0.6,
+                                                          ),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            Transform.rotate(
+                                              angle:
+                                                  _drumRotationController
+                                                      .value *
+                                                  2 *
+                                                  3.14159,
+                                              child: Container(
+                                                width: 220,
+                                                height: 220,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.transparent,
+                                                  border: Border.all(
+                                                    color: Colors.grey[300]!,
+                                                    width: 4,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        110,
+                                                      ),
+                                                ),
+                                                child: Center(
+                                                  child: Container(
+                                                    width: 200,
+                                                    height: 200,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.transparent,
+                                                      border: Border.all(
+                                                        color:
+                                                            Colors.grey[200]!,
+                                                        width: 3,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            100,
+                                                          ),
+                                                    ),
+                                                    child: Stack(
+                                                      children: [
+                                                        if (_isRunning &&
+                                                            _clothesInDrum)
+                                                          ..._buildTumblingClothes(),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            if (_clothesInDrum && !_isRunning)
+                                              Center(
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.checkroom,
+                                                      color: Colors.blue[400]!
+                                                          .withOpacity(0.8),
+                                                      size: 40,
+                                                    ),
+                                                    Icon(
+                                                      Icons.checkroom,
+                                                      color: Colors.blue[300]!
+                                                          .withOpacity(0.6),
+                                                      size: 32,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
 
-                          Positioned(
-                            right: 10,
-                            top: 80,
+                            if (_isLoadingClothes || _isUnloadingClothes)
+                              Positioned(
+                                left: _isLoadingClothes
+                                    ? -100 +
+                                          (_clothesLoadController.value * 150)
+                                    : 50 - (_clothesLoadController.value * 150),
+                                top:
+                                    100 +
+                                    math.sin(
+                                          _clothesLoadController.value *
+                                              math.pi,
+                                        ) *
+                                        -30,
+                                child: _buildClothesPile(),
+                              ),
+
+                            if (!_clothesInDrum &&
+                                !_isLoadingClothes &&
+                                !_isUnloadingClothes)
+                              Positioned(
+                                left: -100,
+                                top: 100,
+                                child: _buildClothesPile(),
+                              ),
+
+                            if (_isUnloadingClothes &&
+                                _clothesLoadController.value < 0.5)
+                              Positioned(
+                                right: -100,
+                                top:
+                                    100 +
+                                    (1 - _clothesLoadController.value * 2) * 70,
+                                child: Opacity(
+                                  opacity: _clothesLoadController.value * 2,
+                                  child: Transform.rotate(
+                                    angle: _clothesLoadController.value * 0.3,
+                                    child: _buildClothesPile(),
+                                  ),
+                                ),
+                              ),
+
+                            Positioned(
+                              right: 20,
+                              top: 100,
+                              child: Container(
+                                width: 40,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Progress Bar
+                      if (_isPoweredOn)
+                        Container(
+                          margin: const EdgeInsets.all(20),
+                          width: 320,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: FractionallySizedBox(
+                            widthFactor: _progress,
                             child: Container(
-                              width: 30,
-                              height: 60,
                               decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(15),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.green[400]!,
+                                    Colors.green[500]!,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(4),
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-
-                    // Progress Bar
-                    if (_isPoweredOn)
-                      Container(
-                        margin: const EdgeInsets.all(10),
-                        width: 250,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(5),
                         ),
-                        child: FractionallySizedBox(
-                          widthFactor: _progress,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue[600],
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -800,13 +1003,61 @@ class _WashingMachineState extends State<WashingMachine>
               if (_isPoweredOn)
                 Text(
                   'Cycle: $_currentCycle | Progress: ${(_progress * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(color: Colors.blue[800], fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+class MieleBodyPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Main body - white with subtle gradient
+    final bodyPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.white, Colors.white.withOpacity(0.95)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bodyPaint);
+
+    // Silver/brushed aluminum accents - top and bottom borders
+    final accentPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.grey[300]!, Colors.grey[400]!, Colors.grey[300]!],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    // Top accent
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, 15), accentPaint);
+    // Bottom accent
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height - 15, size.width, 15),
+      accentPaint,
+    );
+
+    // Silver trim around edges
+    final trimPaint = Paint()
+      ..color = Colors.grey[350]!
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), trimPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant MieleBodyPainter oldDelegate) {
+    return false;
   }
 }
 
